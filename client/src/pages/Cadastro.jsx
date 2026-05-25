@@ -34,7 +34,7 @@ export default function Cadastro({ onIrParaLogin }) {
     <div className="auth-wrapper">
       <div className="auth-card">
         <div className="auth-header">
-          <h1 className="text-accent">NotalQ</h1>
+          <h1 className="text-accent">SISGEV</h1>
           <p className="text-muted text-sm">Criar nova conta</p>
         </div>
 

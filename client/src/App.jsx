@@ -147,7 +147,7 @@ export default function App() {
   return (
     <div className="container">
       <aside className="sidebar">
-        <h1>NotalQ</h1>
+        <h1>SISGEV</h1>
         <nav className="nav-menu">
           {NAV_SECTIONS.map(section => (
             <div key={section.label} className="nav-section">
@@ -172,7 +172,7 @@ export default function App() {
 
       <div className="content">
         <header className="header">
-          <h2>{TITLES[page] || 'NotalQ'}</h2>
+          <h2>{TITLES[page] || 'SISGEV'}</h2>
           <div className="flex items-center gap-3">
             <span className="text-muted text-sm">{usuario.nome}</span>
             <button className="theme-toggle" onClick={toggleTema} title={`Mudar para tema ${temaLabel}`}>
