@@ -180,10 +180,22 @@ export default function Relatorios() {
           if (numCount > vals.length * 0.7) { valorCol = col; break }
         }
       }
+      const dataCol     = header.findIndex(h => /data|date|^dt$/i.test(h))
+      const horaCol     = header.findIndex(h => /hora|time|^hr$/i.test(h))
+      const tipoCol     = header.findIndex(h => /tipo|type|modalidade/i.test(h))
+      const bandeiraCol = header.findIndex(h => /bandeira|brand|cartao/i.test(h))
+
       const transacoes = rows.slice(1).filter(r => r.length > 1).map((r, i) => {
         let raw = valorCol >= 0 ? r[valorCol] : r[r.length - 1]
         raw = (raw || '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')
-        return { linha: i + 2, valor: parseFloat(raw) || 0 }
+        return {
+          linha:    i + 2,
+          valor:    parseFloat(raw) || 0,
+          data:     dataCol     >= 0 ? r[dataCol]     : '—',
+          hora:     horaCol     >= 0 ? r[horaCol]     : '—',
+          tipo:     tipoCol     >= 0 ? r[tipoCol]     : '—',
+          bandeira: bandeiraCol >= 0 ? r[bandeiraCol] : '—',
+        }
       }).filter(t => t.valor > 0)
       conciliar(transacoes)
     }
@@ -622,28 +634,70 @@ export default function Relatorios() {
                   )}
 
                   {conciliacao.apenasMaquina.length > 0 && (
-                    <div style={{ marginBottom: '16px', padding: '16px', background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>⚠ Apenas na maquininha — verificar se foi registrado no sistema</div>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {conciliacao.apenasMaquina.map((t, i) => (
-                          <span key={i} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '6px', padding: '5px 12px', fontSize: '13px', fontWeight: '700' }}>
-                            R$ {t.valor.toFixed(2)}
-                          </span>
-                        ))}
+                    <div style={{ marginBottom: '16px', background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>⚠</span>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: '700', color: '#ef4444' }}>{conciliacao.apenasMaquina.length} transação(ões) na maquininha sem registro no sistema</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>Verifique se estas vendas foram cadastradas manualmente</div>
+                        </div>
                       </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(239,68,68,0.04)' }}>
+                            {['Data', 'Hora', 'Tipo', 'Bandeira', 'Valor na maquininha'].map(h => (
+                              <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: '#ef4444', textTransform: 'uppercase', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {conciliacao.apenasMaquina.map((t, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid rgba(239,68,68,0.1)' }}>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-primary)' }}>{t.data}</td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{t.hora}</td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-primary)' }}>{t.tipo}</td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{t.bandeira}</td>
+                              <td style={{ padding: '10px 14px', fontWeight: '800', color: '#ef4444' }}>R$ {t.valor.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
 
                   {conciliacao.apenasSistema.length > 0 && (
-                    <div style={{ padding: '16px', background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>⚠ Apenas no sistema — transação pode ter sido negada na maquininha</div>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {conciliacao.apenasSistema.map((v, i) => (
-                          <span key={i} style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', borderRadius: '6px', padding: '5px 12px', fontSize: '13px', fontWeight: '700' }}>
-                            {v.numero_venda} · R$ {Number(v.valor_total).toFixed(2)}
-                          </span>
-                        ))}
+                    <div style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ padding: '12px 16px', background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>⚠</span>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: '700', color: '#f59e0b' }}>{conciliacao.apenasSistema.length} venda(s) no sistema sem correspondência na maquininha</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>Transação pode ter sido negada ou processada em outra maquininha</div>
+                        </div>
                       </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(245,158,11,0.04)' }}>
+                            {['Nº Venda', 'Data', 'Pagamento', 'Qtd. Itens', 'Total no sistema'].map(h => (
+                              <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: '#f59e0b', textTransform: 'uppercase', borderBottom: '1px solid rgba(245,158,11,0.15)' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {conciliacao.apenasSistema.map((v, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid rgba(245,158,11,0.1)' }}>
+                              <td style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'monospace' }}>{v.numero_venda}</td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{new Date(v.data).toLocaleDateString('pt-BR')}</td>
+                              <td style={{ padding: '10px 14px' }}>
+                                <span style={{ background: `${FORMA_COR[v.forma_pagamento] || '#71717a'}18`, color: FORMA_COR[v.forma_pagamento] || '#71717a', border: `1px solid ${FORMA_COR[v.forma_pagamento] || '#71717a'}40`, borderRadius: '4px', padding: '2px 8px', fontWeight: '700', fontSize: '11px' }}>
+                                  {FORMAS_LABEL[v.forma_pagamento] || v.forma_pagamento}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{v.qtd_itens} {v.qtd_itens === 1 ? 'item' : 'itens'}</td>
+                              <td style={{ padding: '10px 14px', fontWeight: '800', color: '#f59e0b' }}>R$ {Number(v.valor_total).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </>
