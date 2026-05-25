@@ -137,7 +137,7 @@ export default function Configuracoes({ addToast }) {
       <div className="dash-card">
         <div className="dash-card__header">
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>Sobre o Sistema</h3>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>v2.0.0</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>v1.0.0</span>
         </div>
         <div style={{ padding: '0 24px' }}>
           {[
