@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://localhost:3001/api/relatorios/vendas?inicio=2025-01-01&fim=2026-12-31\")",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); console.log\\(d\\)\")",
+      "Bash(curl -s http://localhost:3001/api/vendas)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s http://localhost:3001/api/compras)",
+      "Bash(curl -s http://localhost:3001/api/financeiro/resumo)",
+      "Bash(curl -s \"http://localhost:3001/api/relatorios/vendas?data_inicio=2025-01-01&data_fim=2026-12-31\")",
+      "Bash(curl -s \"http://localhost:3001/api/relatorios/produtos-mais-vendidos\")",
+      "Bash(curl -s \"http://localhost:3001/api/relatorios/faturamento-diario\")",
+      "Bash(curl -s \"http://localhost:3001/api/relatorios/financeiro\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/pagamento -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(curl -s http://localhost:3001/api/dashboard)",
+      "Bash(curl -s http://localhost:3001/api/fornecedores)",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs kill -9)"
+    ]
+  }
+}
