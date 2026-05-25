@@ -127,6 +127,33 @@ export default function Relatorios() {
     setConciliacao({ conciliadas, apenasMaquina, apenasSistema, totalMaquina: maquinaTransacoes.length, totalSistema: vendasCartao.length })
   }
 
+  const gerarExtratoTeste = () => {
+    if (!vendasPeriodo?.vendas?.length) return
+    const vendasCartao = vendasPeriodo.vendas.filter(v =>
+      v.forma_pagamento === 'credito' || v.forma_pagamento === 'debito'
+    )
+    if (!vendasCartao.length) return
+    const header = 'Data;Hora;Tipo;Bandeira;Valor Bruto'
+    const linhas = vendasCartao.map(v => {
+      const d = new Date(v.data)
+      const data = d.toLocaleDateString('pt-BR')
+      const hora = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+      const tipo = v.forma_pagamento === 'credito' ? 'Crédito à Vista' : 'Débito'
+      const bandeira = v.forma_pagamento === 'credito' ? 'Visa' : 'Mastercard'
+      const valor = Number(v.valor_total).toFixed(2).replace('.', ',')
+      return `${data};${hora};${tipo};${bandeira};${valor}`
+    })
+    linhas.push(`${new Date().toLocaleDateString('pt-BR')};14:22;Crédito à Vista;Visa;150,00`)
+    const csv = '﻿' + [header, ...linhas].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `extrato_maquininha_${dataInicio}_a_${dataFim}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleArquivoMaquininha = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -470,121 +497,156 @@ export default function Relatorios() {
 
       {/* ── Conciliação com Maquininha de Cartão ── */}
       <div style={card}>
-        <div style={cardHeader}>
+        <div style={{ ...cardHeader, background: 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, transparent 100%)' }}>
           <div>
             <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Relatório 04</p>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>Conciliação com Maquininha de Cartão</h3>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Importe o extrato da maquininha (CSV/SICOM) e compare com as vendas no débito/crédito do período selecionado</p>
+            <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Compare automaticamente o extrato da maquininha com as vendas registradas no sistema</p>
           </div>
+          {vendasPeriodo?.vendas && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', padding: '6px 12px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+              <span style={{ fontSize: '12px', fontWeight: '600', color: '#10b981' }}>
+                {vendasPeriodo.vendas.filter(v => v.forma_pagamento === 'credito' || v.forma_pagamento === 'debito').length} vendas no cartão prontas
+              </span>
+            </div>
+          )}
         </div>
 
-        <div style={{ padding: '20px 24px' }}>
-          {/* Upload */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--bg-secondary)', border: '2px dashed var(--border)', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', transition: 'border-color 200ms' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
-              <input type="file" accept=".csv,.txt" style={{ display: 'none' }}
-                onChange={handleArquivoMaquininha}
-                disabled={!vendasPeriodo?.vendas} />
-              <span style={{ fontSize: '16px' }}>📂</span>
-              {nomeArquivo ? nomeArquivo : 'Selecionar extrato da maquininha (.csv)'}
+        <div style={{ padding: '24px' }}>
+
+          {/* Passos */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+            {[
+              { n: '1', titulo: 'Buscar vendas', desc: 'Selecione o período e clique em "Buscar" no Relatório 01 acima', ok: !!vendasPeriodo?.vendas },
+              { n: '2', titulo: 'Importar extrato', desc: 'Exporte o CSV da sua maquininha (Cielo, Stone, Rede) e importe aqui', ok: !!nomeArquivo },
+              { n: '3', titulo: 'Ver resultado', desc: 'O sistema identifica divergências automaticamente entre os dois registros', ok: !!conciliacao },
+            ].map(({ n, titulo, desc, ok }) => (
+              <div key={n} style={{ background: ok ? 'rgba(16,185,129,0.06)' : 'var(--bg-secondary)', border: `1px solid ${ok ? 'rgba(16,185,129,0.25)' : 'var(--border)'}`, borderRadius: '10px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: ok ? '#10b981' : 'var(--border)', color: ok ? '#fff' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', flexShrink: 0, lineHeight: 1 }}>
+                  {ok ? '✓' : n}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', marginBottom: '3px', color: ok ? '#10b981' : 'var(--text-primary)' }}>{titulo}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ações */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', paddingTop: '4px' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: vendasPeriodo?.vendas ? 'var(--accent)' : 'var(--bg-secondary)', color: vendasPeriodo?.vendas ? '#fff' : 'var(--text-muted)', border: 'none', borderRadius: '8px', padding: '10px 20px', cursor: vendasPeriodo?.vendas ? 'pointer' : 'not-allowed', fontSize: '13px', fontWeight: '700', transition: 'opacity 200ms', opacity: vendasPeriodo?.vendas ? 1 : 0.5 }}>
+              <input type="file" accept=".csv,.txt" style={{ display: 'none' }} onChange={handleArquivoMaquininha} disabled={!vendasPeriodo?.vendas} />
+              📂 {nomeArquivo ? nomeArquivo : 'Importar extrato da maquininha'}
             </label>
-            {!vendasPeriodo?.vendas && (
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Busque as vendas do período primeiro</span>
+
+            {vendasPeriodo?.vendas && vendasPeriodo.vendas.some(v => v.forma_pagamento === 'credito' || v.forma_pagamento === 'debito') && (
+              <button className="btn btn-secondary" style={{ padding: '10px 16px', fontSize: '13px' }}
+                onClick={gerarExtratoTeste} title="Gera um CSV simulando o extrato da maquininha com as vendas do período">
+                ↓ Gerar extrato de teste
+              </button>
             )}
+
             {conciliacao && (
-              <button className="btn btn-secondary" style={{ padding: '7px 14px', fontSize: '12px' }}
+              <button className="btn btn-secondary" style={{ padding: '10px 14px', fontSize: '12px', marginLeft: 'auto' }}
                 onClick={() => { setConciliacao(null); setNomeArquivo('') }}>
                 Limpar
               </button>
             )}
           </div>
 
+          {!vendasPeriodo?.vendas && (
+            <div style={{ marginTop: '16px', padding: '12px 16px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>
+              Primeiro busque as vendas no Relatório 01 (selecione o período e clique em Buscar).
+            </div>
+          )}
+
           {/* Resultados */}
           {conciliacao && (
-            <div style={{ marginTop: '20px' }}>
-              {/* KPIs da conciliação */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px', padding: '14px 18px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#10b981', lineHeight: 1 }}>{conciliacao.conciliadas.length}</div>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>Conciliadas</div>
+            <div style={{ marginTop: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
+                <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px', padding: '16px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '36px', fontWeight: '800', color: '#10b981', lineHeight: 1 }}>{conciliacao.conciliadas.length}</div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '6px' }}>Conciliadas</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>encontradas nos dois lados</div>
                 </div>
-                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '14px 18px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444', lineHeight: 1 }}>{conciliacao.apenasMaquina.length}</div>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>Só na maquininha</div>
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '16px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '36px', fontWeight: '800', color: '#ef4444', lineHeight: 1 }}>{conciliacao.apenasMaquina.length}</div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '6px' }}>Só na maquininha</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>possível venda não registrada</div>
                 </div>
-                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px', padding: '14px 18px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b', lineHeight: 1 }}>{conciliacao.apenasSistema.length}</div>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>Só no sistema</div>
+                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px', padding: '16px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '36px', fontWeight: '800', color: '#f59e0b', lineHeight: 1 }}>{conciliacao.apenasSistema.length}</div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '6px' }}>Só no sistema</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>transação pode ter sido negada</div>
                 </div>
               </div>
 
-              {/* Conciliadas */}
-              {conciliacao.conciliadas.length > 0 && (
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>✓ Transações conciliadas</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead style={{ background: 'var(--bg-secondary)' }}>
-                      <tr>
-                        {['Nº Venda', 'Data', 'Pagamento', 'Valor Sistema (R$)', 'Valor Maquininha (R$)'].map(h => (
-                          <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border)' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {conciliacao.conciliadas.map(({ maquina, sistema }, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '8px 12px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'monospace' }}>{sistema.numero_venda}</td>
-                          <td style={{ padding: '8px 12px', color: 'var(--text-muted)' }}>{new Date(sistema.data).toLocaleDateString('pt-BR')}</td>
-                          <td style={{ padding: '8px 12px' }}>
-                            <span style={{ background: `${FORMA_COR[sistema.forma_pagamento] || '#71717a'}18`, color: FORMA_COR[sistema.forma_pagamento] || '#71717a', border: `1px solid ${FORMA_COR[sistema.forma_pagamento] || '#71717a'}40`, borderRadius: '4px', padding: '2px 7px', fontWeight: '700' }}>
-                              {FORMAS_LABEL[sistema.forma_pagamento] || sistema.forma_pagamento}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 12px', fontWeight: '700', color: 'var(--success)' }}>R$ {Number(sistema.valor_total).toFixed(2)}</td>
-                          <td style={{ padding: '8px 12px', fontWeight: '700', color: 'var(--success)' }}>R$ {maquina.valor.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Só na maquininha */}
-              {conciliacao.apenasMaquina.length > 0 && (
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>⚠ Apenas na maquininha (não encontrado no sistema)</div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {conciliacao.apenasMaquina.map((t, i) => (
-                      <span key={i} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', fontWeight: '700' }}>
-                        R$ {t.valor.toFixed(2)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Só no sistema */}
-              {conciliacao.apenasSistema.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>⚠ Apenas no sistema (não encontrado na maquininha)</div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {conciliacao.apenasSistema.map((v, i) => (
-                      <span key={i} style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', fontWeight: '700' }}>
-                        {v.numero_venda} · R$ {Number(v.valor_total).toFixed(2)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {conciliacao.apenasMaquina.length === 0 && conciliacao.apenasSistema.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(16,185,129,0.06)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
-                  <div style={{ fontSize: '22px', marginBottom: '6px' }}>✅</div>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#10b981' }}>Conciliação perfeita!</div>
+              {conciliacao.apenasMaquina.length === 0 && conciliacao.apenasSistema.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px', background: 'rgba(16,185,129,0.06)', borderRadius: '10px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>✅</div>
+                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#10b981' }}>Conciliação perfeita!</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Todas as transações da maquininha foram encontradas no sistema.</div>
                 </div>
+              ) : (
+                <>
+                  {conciliacao.conciliadas.length > 0 && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>✓ Transações conciliadas</div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead style={{ background: 'var(--bg-secondary)' }}>
+                          <tr>
+                            {['Nº Venda', 'Data', 'Pagamento', 'Valor Sistema', 'Valor Maquininha'].map(h => (
+                              <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {conciliacao.conciliadas.map(({ maquina, sistema }, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'monospace' }}>{sistema.numero_venda}</td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{new Date(sistema.data).toLocaleDateString('pt-BR')}</td>
+                              <td style={{ padding: '10px 14px' }}>
+                                <span style={{ background: `${FORMA_COR[sistema.forma_pagamento] || '#71717a'}18`, color: FORMA_COR[sistema.forma_pagamento] || '#71717a', border: `1px solid ${FORMA_COR[sistema.forma_pagamento] || '#71717a'}40`, borderRadius: '4px', padding: '2px 8px', fontWeight: '700', fontSize: '11px' }}>
+                                  {FORMAS_LABEL[sistema.forma_pagamento] || sistema.forma_pagamento}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--success)' }}>R$ {Number(sistema.valor_total).toFixed(2)}</td>
+                              <td style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--success)' }}>R$ {maquina.valor.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {conciliacao.apenasMaquina.length > 0 && (
+                    <div style={{ marginBottom: '16px', padding: '16px', background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>⚠ Apenas na maquininha — verificar se foi registrado no sistema</div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {conciliacao.apenasMaquina.map((t, i) => (
+                          <span key={i} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '6px', padding: '5px 12px', fontSize: '13px', fontWeight: '700' }}>
+                            R$ {t.valor.toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {conciliacao.apenasSistema.length > 0 && (
+                    <div style={{ padding: '16px', background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>⚠ Apenas no sistema — transação pode ter sido negada na maquininha</div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {conciliacao.apenasSistema.map((v, i) => (
+                          <span key={i} style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', borderRadius: '6px', padding: '5px 12px', fontSize: '13px', fontWeight: '700' }}>
+                            {v.numero_venda} · R$ {Number(v.valor_total).toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
