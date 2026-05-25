@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { ConfiguracaoService } from '../services/api'
 
-const card = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }
-const cardHeader = { padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
-
-const Lbl = ({ children }) => (
-  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '5px' }}>
-    {children}
-  </label>
-)
-
 const Badge = ({ children, cor = 'var(--accent)', bg = 'rgba(99,102,241,0.1)' }) => (
   <span style={{ display: 'inline-block', background: bg, color: cor, borderRadius: '4px', padding: '2px 8px', fontSize: '11px', fontWeight: '700' }}>
     {children}
@@ -59,10 +50,10 @@ export default function Configuracoes({ addToast }) {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="page-layout">
 
       {/* Identidade da empresa */}
-      <div style={{ ...card, background: 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0.02) 100%)', borderColor: 'rgba(99,102,241,0.2)' }}>
+      <div className="dash-card" style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0.02) 100%)', borderColor: 'rgba(99,102,241,0.2)' }}>
         <div style={{ padding: '28px 32px', display: 'flex', alignItems: 'center', gap: '24px' }}>
           <div style={{
             width: '72px', height: '72px', borderRadius: '16px', flexShrink: 0,
@@ -93,8 +84,8 @@ export default function Configuracoes({ addToast }) {
       </div>
 
       {/* Formulário */}
-      <div style={card}>
-        <div style={cardHeader}>
+      <div className="dash-card">
+        <div className="dash-card__header">
           <div>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>Informações da Empresa</h3>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Exibidas no cupom fiscal e relatórios</p>
@@ -103,28 +94,33 @@ export default function Configuracoes({ addToast }) {
         <form onSubmit={salvar} style={{ padding: '24px' }}>
 
           <div style={{ marginBottom: '16px' }}>
-            <Lbl>Nome da Empresa</Lbl>
+            <label className="field-label">Nome da Empresa</label>
             <input className="input" placeholder="Ex: Minha Loja Ltda." value={form.nome_empresa || ''} onChange={set('nome_empresa')} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <Lbl>CNPJ</Lbl>
+              <label className="field-label">CNPJ</label>
               <input className="input" placeholder="00.000.000/0000-00" value={form.cnpj || ''} onChange={set('cnpj')} />
             </div>
             <div>
-              <Lbl>Telefone</Lbl>
+              <label className="field-label">Telefone</label>
               <input className="input" placeholder="(11) 3000-0000" value={form.telefone || ''} onChange={set('telefone')} />
             </div>
           </div>
 
+          <div style={{ marginBottom: '16px' }}>
+            <label className="field-label">E-mail</label>
+            <input className="input" type="email" placeholder="contato@empresa.com.br" value={form.email || ''} onChange={set('email')} />
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '16px', marginBottom: '24px' }}>
             <div>
-              <Lbl>Moeda</Lbl>
+              <label className="field-label">Moeda</label>
               <input className="input" placeholder="BRL" value={form.moeda || ''} onChange={set('moeda')} />
             </div>
             <div>
-              <Lbl>Endereço</Lbl>
+              <label className="field-label">Endereço</label>
               <input className="input" placeholder="Rua, número, cidade - UF" value={form.endereco || ''} onChange={set('endereco')} />
             </div>
           </div>
@@ -138,8 +134,8 @@ export default function Configuracoes({ addToast }) {
       </div>
 
       {/* Stack técnico */}
-      <div style={card}>
-        <div style={cardHeader}>
+      <div className="dash-card">
+        <div className="dash-card__header">
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>Sobre o Sistema</h3>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>v2.0.0</span>
         </div>
@@ -168,7 +164,7 @@ export default function Configuracoes({ addToast }) {
               sub: 'Controle de acesso',
               badges: [
                 { label: 'JWT', cor: '#fb923c', bg: 'rgba(251,146,60,0.1)' },
-                { label: 'localStorage', cor: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
+                { label: 'bcrypt', cor: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
               ]
             },
           ].map(({ titulo, sub, badges }, i, arr) => (

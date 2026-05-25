@@ -49,6 +49,8 @@ export default function Relatorios() {
   const [diaAtivo, setDiaAtivo] = useState(null)
   const [produtoAtivo, setProdutoAtivo] = useState(null)
   const [filtroFormaVendas, setFiltroFormaVendas] = useState('')
+  const [conciliacao, setConciliacao] = useState(null)
+  const [nomeArquivo, setNomeArquivo] = useState('')
 
   const set = (k, v) => setLoading(l => ({ ...l, [k]: v }))
 
@@ -78,6 +80,87 @@ export default function Relatorios() {
     carregarVendas(dataInicio, dataFim)
     carregarProdutos()
     carregarFat(mes, ano)
+  }
+
+  const exportarCSV = () => {
+    if (!vendasPeriodo?.vendas?.length) return
+    const BOM = '﻿'
+    const headers = ['Nº Venda', 'Data', 'Itens', 'Desconto (R$)', 'Total (R$)', 'Pagamento']
+    const linhas = vendasPeriodo.vendas.map(v => [
+      v.numero_venda,
+      new Date(v.data).toLocaleDateString('pt-BR'),
+      v.qtd_itens,
+      Number(v.desconto).toFixed(2).replace('.', ','),
+      Number(v.valor_total).toFixed(2).replace('.', ','),
+      FORMAS_LABEL[v.forma_pagamento] || v.forma_pagamento
+    ].join(';'))
+    const csv = BOM + [headers.join(';'), ...linhas].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `vendas_${dataInicio}_a_${dataFim}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const conciliar = (maquinaTransacoes) => {
+    const vendasCartao = (vendasPeriodo?.vendas || []).filter(v =>
+      v.forma_pagamento === 'credito' || v.forma_pagamento === 'debito'
+    )
+    const sistemaUsado = new Set()
+    const conciliadas = [], apenasMaquina = [], apenasSistema = []
+    for (const t of maquinaTransacoes) {
+      let match = null
+      for (let i = 0; i < vendasCartao.length; i++) {
+        if (sistemaUsado.has(i)) continue
+        if (Math.abs(Number(vendasCartao[i].valor_total) - t.valor) < 0.02) {
+          match = vendasCartao[i]; sistemaUsado.add(i); break
+        }
+      }
+      if (match) conciliadas.push({ maquina: t, sistema: match })
+      else apenasMaquina.push(t)
+    }
+    for (let i = 0; i < vendasCartao.length; i++) {
+      if (!sistemaUsado.has(i)) apenasSistema.push(vendasCartao[i])
+    }
+    setConciliacao({ conciliadas, apenasMaquina, apenasSistema, totalMaquina: maquinaTransacoes.length, totalSistema: vendasCartao.length })
+  }
+
+  const handleArquivoMaquininha = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setNomeArquivo(file.name)
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      const text = evt.target.result.replace(/\r/g, '')
+      const linhas = text.split('\n').filter(l => l.trim())
+      if (linhas.length < 2) return
+      const sep = linhas[0].includes(';') ? ';' : ','
+      const rows = linhas.map(l => l.split(sep).map(c => c.replace(/^["']|["']$/g, '').trim()))
+      const header = rows[0]
+      const valorKeywords = ['valor bruto', 'bruto', 'valor total', 'total', 'valor', 'amount']
+      let valorCol = -1
+      for (const kw of valorKeywords) {
+        const idx = header.findIndex(h => h.toLowerCase().includes(kw))
+        if (idx >= 0) { valorCol = idx; break }
+      }
+      if (valorCol < 0) {
+        const dataRows = rows.slice(1)
+        for (let col = 0; col < header.length; col++) {
+          const vals = dataRows.map(r => r[col]).filter(Boolean)
+          const numCount = vals.filter(v => /^\d[\d.,]*$/.test(v)).length
+          if (numCount > vals.length * 0.7) { valorCol = col; break }
+        }
+      }
+      const transacoes = rows.slice(1).filter(r => r.length > 1).map((r, i) => {
+        let raw = valorCol >= 0 ? r[valorCol] : r[r.length - 1]
+        raw = (raw || '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')
+        return { linha: i + 2, valor: parseFloat(raw) || 0 }
+      }).filter(t => t.valor > 0)
+      conciliar(transacoes)
+    }
+    reader.readAsText(file, 'UTF-8')
   }
 
   const maxFat  = fatDiario ? Math.max(...fatDiario.map(d => Number(d.faturamento)), 1) : 1
@@ -290,6 +373,10 @@ export default function Relatorios() {
               onClick={() => carregarVendas(dataInicio, dataFim)}>
               {loading.vendas ? 'Buscando…' : 'Buscar'}
             </button>
+            <button className="btn btn-secondary" style={{ padding: '7px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}
+              disabled={!vendasPeriodo?.vendas?.length} onClick={exportarCSV} title="Exportar lista de vendas como CSV">
+              ↓ CSV
+            </button>
           </div>
         </div>
 
@@ -380,6 +467,129 @@ export default function Relatorios() {
         )}
       </div>
 
+
+      {/* ── Conciliação com Maquininha de Cartão ── */}
+      <div style={card}>
+        <div style={cardHeader}>
+          <div>
+            <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Relatório 04</p>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>Conciliação com Maquininha de Cartão</h3>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Importe o extrato da maquininha (CSV/SICOM) e compare com as vendas no débito/crédito do período selecionado</p>
+          </div>
+        </div>
+
+        <div style={{ padding: '20px 24px' }}>
+          {/* Upload */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--bg-secondary)', border: '2px dashed var(--border)', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', transition: 'border-color 200ms' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+              <input type="file" accept=".csv,.txt" style={{ display: 'none' }}
+                onChange={handleArquivoMaquininha}
+                disabled={!vendasPeriodo?.vendas} />
+              <span style={{ fontSize: '16px' }}>📂</span>
+              {nomeArquivo ? nomeArquivo : 'Selecionar extrato da maquininha (.csv)'}
+            </label>
+            {!vendasPeriodo?.vendas && (
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Busque as vendas do período primeiro</span>
+            )}
+            {conciliacao && (
+              <button className="btn btn-secondary" style={{ padding: '7px 14px', fontSize: '12px' }}
+                onClick={() => { setConciliacao(null); setNomeArquivo('') }}>
+                Limpar
+              </button>
+            )}
+          </div>
+
+          {/* Resultados */}
+          {conciliacao && (
+            <div style={{ marginTop: '20px' }}>
+              {/* KPIs da conciliação */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px', padding: '14px 18px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#10b981', lineHeight: 1 }}>{conciliacao.conciliadas.length}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>Conciliadas</div>
+                </div>
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '14px 18px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444', lineHeight: 1 }}>{conciliacao.apenasMaquina.length}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>Só na maquininha</div>
+                </div>
+                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px', padding: '14px 18px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b', lineHeight: 1 }}>{conciliacao.apenasSistema.length}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>Só no sistema</div>
+                </div>
+              </div>
+
+              {/* Conciliadas */}
+              {conciliacao.conciliadas.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>✓ Transações conciliadas</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead style={{ background: 'var(--bg-secondary)' }}>
+                      <tr>
+                        {['Nº Venda', 'Data', 'Pagamento', 'Valor Sistema (R$)', 'Valor Maquininha (R$)'].map(h => (
+                          <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {conciliacao.conciliadas.map(({ maquina, sistema }, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'monospace' }}>{sistema.numero_venda}</td>
+                          <td style={{ padding: '8px 12px', color: 'var(--text-muted)' }}>{new Date(sistema.data).toLocaleDateString('pt-BR')}</td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <span style={{ background: `${FORMA_COR[sistema.forma_pagamento] || '#71717a'}18`, color: FORMA_COR[sistema.forma_pagamento] || '#71717a', border: `1px solid ${FORMA_COR[sistema.forma_pagamento] || '#71717a'}40`, borderRadius: '4px', padding: '2px 7px', fontWeight: '700' }}>
+                              {FORMAS_LABEL[sistema.forma_pagamento] || sistema.forma_pagamento}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px 12px', fontWeight: '700', color: 'var(--success)' }}>R$ {Number(sistema.valor_total).toFixed(2)}</td>
+                          <td style={{ padding: '8px 12px', fontWeight: '700', color: 'var(--success)' }}>R$ {maquina.valor.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Só na maquininha */}
+              {conciliacao.apenasMaquina.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>⚠ Apenas na maquininha (não encontrado no sistema)</div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {conciliacao.apenasMaquina.map((t, i) => (
+                      <span key={i} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', fontWeight: '700' }}>
+                        R$ {t.valor.toFixed(2)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Só no sistema */}
+              {conciliacao.apenasSistema.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>⚠ Apenas no sistema (não encontrado na maquininha)</div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {conciliacao.apenasSistema.map((v, i) => (
+                      <span key={i} style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', fontWeight: '700' }}>
+                        {v.numero_venda} · R$ {Number(v.valor_total).toFixed(2)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {conciliacao.apenasMaquina.length === 0 && conciliacao.apenasSistema.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(16,185,129,0.06)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                  <div style={{ fontSize: '22px', marginBottom: '6px' }}>✅</div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#10b981' }}>Conciliação perfeita!</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Todas as transações da maquininha foram encontradas no sistema.</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
     </div>
   )
