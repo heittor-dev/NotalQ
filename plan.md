@@ -1,8 +1,8 @@
-# PDV System — Plano do Projeto
+# SISGEV — Sistema de Gestão de Vendas
 
 ## Visão Geral
 
-Sistema de Ponto de Venda (PDV) acadêmico com aparência e funcionamento empresarial.
+Sistema de Gestão de Vendas acadêmico com aparência e funcionamento empresarial.
 
 **Stack:** React + Vite (frontend) · Node.js + Express + SQLite (backend)
 
@@ -295,7 +295,7 @@ cd client && npm run dev
 ```
 
 Acesse: http://localhost:3000  
-Usuário padrão: `admin@pdv.com` / `admin123`
+Usuário padrão: `admin@sisgev.com` / `admin123`
 
 ---
 
