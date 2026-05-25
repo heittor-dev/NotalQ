@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ['python3', 'sqlite', 'pkg-config', 'gcc', 'gnumake']
+
+[phases.install]
+cmds = ['npm install --build-from-source']
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = 'node src/index.js'

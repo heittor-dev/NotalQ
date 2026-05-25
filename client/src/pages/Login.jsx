@@ -26,7 +26,7 @@ export default function Login({ onLogin, onIrParaCadastro }) {
     <div className="auth-wrapper">
       <div className="auth-card">
         <div className="auth-header">
-          <h1 className="text-accent">PlanQ</h1>
+          <h1 className="text-accent">NotalQ</h1>
           <p className="text-muted text-sm">Sistema de Gestão Empresarial</p>
         </div>
 
